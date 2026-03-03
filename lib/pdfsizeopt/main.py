@@ -112,6 +112,15 @@ FLAGS_HELP = r"""
   After Type1C font serialization, parse it again, and check that the glyphs
   and most other fields are still there? It is slow, but it can reveal some
   bugs in Ghostscript.
+--do-remove-core-fonts=YES_NO; default: no
+  Enable unembedding the Base14 PDF fonts. These fonts were guaranteed to be
+  present with all PDF readers, but while virtually all system provide
+  reasonable metric-compatible fonts with the original Base14 fonts, they
+  may have different shapes than the original fonts and, as a result, the
+  processed document may not look exactly the same as the original document.
+  Needs external optimizer tool Multivalent.
+  Only use this flag if you are willing to have processed documents that may
+  not look exactly the same as the original document.
 --do-optimize-streams=YES_NO; default: yes
   Recompress all non-image streams, keep the smallest value. To optimize image
   streams, please use --do-optimize-images=yes.
@@ -9190,7 +9199,8 @@ class PdfData(object):
   PDFDATA_MULTIVALENT_EXT_SUB_RE = re.compile(r'[.][^.]+\Z')
 
   def _RunMultivalent(self, do_escape_images,
-                      multivalent_compress_command):
+                      multivalent_compress_command,
+                      do_remove_core_fonts):
     """Run Multivalent, and read its output.
 
    Args:
@@ -9236,7 +9246,10 @@ class PdfData(object):
     # * Don't add -jpeg, it introduces lossy compression.
     # * Don't add -subset, it's expreimental.
     # * FYI http://code.google.com/p/pdfsizeopt/issues/detail?id=30 .
-    multivalent_flags = '-nopagepiece -noalt -mon'
+    multivalent_flags = '-nopagepiece -noalt -mon -nowebcap -nostruct -nopagepiece'
+
+    if do_remove_core_fonts:
+      multivalent_flags += ' -nocore'
 
     # TODO(pts): Work around exception for emptypage.pdf:
     # psotmp.PID.conv.mi.tmp.pdf: java.lang.ClassCastException:
@@ -9275,6 +9288,7 @@ class PdfData(object):
            do_escape_images_from_multivalent,
            do_generate_xref_stream,
            do_generate_object_stream,
+           do_remove_core_fonts,
            is_flate_ok):
     """Save this PDF to a file, with or without Multivalent.
 
@@ -9285,6 +9299,8 @@ class PdfData(object):
         prefix for running Multivalent tool.pdf.Compress.
       do_update_file_meta: bool indicating whether self.file_name and
         self.file_size should be updated after a successful save.
+      do_remove_core_fonts: bool indicating whether we should unembed the
+        core14 fonts.
       is_flate_ok: bool indicating if it's OK to generate xref and object
         streams with /Filter/FlateDecode.
     """
@@ -9327,7 +9343,8 @@ class PdfData(object):
     if multivalent_compress_command:
       multivalent_output_data, tmp_files_to_remove = self._RunMultivalent(
           do_escape_images=do_escape_images_from_multivalent,
-          multivalent_compress_command=multivalent_compress_command)
+          multivalent_compress_command=multivalent_compress_command,
+          do_remove_core_fonts=do_remove_core_fonts)
     else:
       tmp_files_to_remove = ()
       multivalent_output_data = None
@@ -9817,6 +9834,7 @@ def main(argv, script_dir=None, zip_file=None):
       do_escape_images_from_multivalent=f.do_escape_images_from_multivalent,
       do_generate_xref_stream=f.do_generate_xref_stream,
       do_generate_object_stream=f.do_generate_object_stream,
+      do_remove_core_fonts=f.do_remove_core_fonts,
       is_flate_ok=(f.do_compress_uncompressed_streams and
                    not f.do_decompress_most_streams))
   Rename(output_file_name + '.tmp', output_file_name)
