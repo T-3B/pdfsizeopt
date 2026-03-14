@@ -9295,7 +9295,7 @@ class PdfData(object):
     # * Don't add -jpeg, it introduces lossy compression.
     # * Don't add -subset, it's expreimental.
     # * FYI http://code.google.com/p/pdfsizeopt/issues/detail?id=30 .
-    multivalent_flags = '-nopagepiece -noalt -mon -nowebcap -nostruct -nopagepiece'
+    multivalent_flags = '-nopagepiece -noalt -mon -nowebcap -nostruct'
 
     if do_remove_core_fonts:
       multivalent_flags += ' -nocore'
